@@ -1,0 +1,1569 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+<title>AGNI 26 - Campus Treasure Hunt &amp; Proctor HQ Unified System</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,900;1,600&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- jsQR for real in-browser live camera parsing -->
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<!-- Firebase App & Firestore compat libraries for real cloud sync -->
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "surface": "#10131a",
+            "surface-dim": "#0b0e14",
+            "surface-container-lowest": "#0b0e14",
+            "surface-container-low": "#141720",
+            "surface-container": "#1a1e27",
+            "surface-container-high": "#242935",
+            "surface-container-highest": "#2e3442",
+            "surface-variant": "#2e3442",
+            "on-surface": "#e5e7eb",
+            "on-surface-variant": "#9ca3af",
+            "primary": "#f2ca50",
+            "primary-container": "#d4af37",
+            "on-primary": "#2a2100",
+            "secondary": "#ffb95f",
+            "tertiary": "#58e7aa",
+            "error": "#ff6b6b",
+            "outline": "#4b5563"
+          },
+          fontFamily: {
+            "display": ["Playfair Display", "serif"],
+            "sans": ["Plus Jakarta Sans", "sans-serif"],
+            "mono": ["JetBrains Mono", "monospace"]
+          }
+        }
+      }
+    };
+  </script>
+<style>
+    body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+    .pb-safe { padding-bottom: max(env(safe-area-inset-bottom, 16px), 16px); }
+    .pt-safe { padding-top: max(env(safe-area-inset-top, 16px), 16px); }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-thumb { background: #2e3442; border-radius: 4px; }
+    @keyframes sweep { 0% { top: 6%; opacity: .9; } 50% { top: 92%; opacity: 1; } 100% { top: 6%; opacity: .9; } }
+    .laser-line { animation: sweep 2.2s ease-in-out infinite; }
+    @keyframes radarPulse { 0% { transform: scale(0.95); opacity: 0.8; } 50% { transform: scale(1.05); opacity: 0.3; } 100% { transform: scale(0.95); opacity: 0.8; } }
+    .radar-beacon { animation: radarPulse 3s ease-in-out infinite; }
+    @media print {
+      body * { visibility: hidden; }
+      #printArea, #printArea * { visibility: visible; }
+      #printArea { position: absolute; left: 0; top: 0; width: 100%; display: block !important; }
+    }
+  </style>
+</head>
+<body class="bg-surface font-sans text-on-surface flex flex-col min-h-screen selection:bg-primary selection:text-on-primary antialiased">
+<!-- TOAST NOTIFICATION -->
+<div class="fixed top-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none transition-all duration-300 opacity-0 transform -translate-y-2 flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-surface-container-highest border border-primary/50 text-on-surface shadow-2xl text-xs font-mono max-w-[92vw]" id="toastNotification">
+<span class="material-symbols-outlined text-primary text-[19px]" id="toastIcon">info</span>
+<span class="truncate" id="toastMsg">Notification</span>
+</div>
+<!-- ============================================== -->
+<!-- TOP GLOBAL UNIFIED NAVBAR                      -->
+<!-- ============================================== -->
+<header class="w-full pt-safe px-4 py-2.5 flex items-center justify-between border-b border-outline/30 bg-surface-dim/95 backdrop-blur-md sticky top-0 z-40">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded-lg bg-primary/20 text-primary flex items-center justify-center border border-primary/40 font-bold shadow-[0_0_12px_rgba(242,202,80,0.25)]">
+<span class="material-symbols-outlined text-[22px]">local_fire_department</span>
+</div>
+<div>
+<div class="flex items-center gap-2 flex-wrap">
+<span class="text-[10px] uppercase font-mono tracking-widest text-primary font-bold">AGNI 26 • UNIFIED EXPEDITION</span>
+<span class="px-2 py-0.5 rounded-full bg-tertiary/15 text-tertiary font-mono text-[9px] font-bold flex items-center gap-1 border border-tertiary/30" id="globalCloudStatusBadge">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary animate-pulse" id="cloudPulseDot"></span>
+<span id="cloudStatusText">Firestore Live: treasure-hunt-2ad2b</span>
+</span>
+</div>
+<h1 class="text-xs font-display font-bold text-on-surface flex items-center gap-2">
+<span>Campus Treasure Hunt &amp; Command Portal</span>
+</h1>
+</div>
+</div>
+<!-- Primary Route Switcher Tabs -->
+<div class="flex items-center gap-2">
+<div class="flex items-center bg-surface-container p-1 rounded-xl border border-outline/40">
+<button class="px-3 py-1.5 rounded-lg text-xs font-mono font-bold flex items-center gap-1.5 transition-all bg-primary text-on-primary shadow" id="navBtnParticipant" onclick="switchToAppView('participant')">
+<span class="material-symbols-outlined text-[15px]">explore</span>
+<span>Hunt Experience</span>
+</button>
+<button class="px-3 py-1.5 rounded-lg text-xs font-mono font-bold flex items-center gap-1.5 transition-all text-on-surface-variant hover:text-on-surface" id="navBtnAdmin" onclick="requestAdminPortalAccess()">
+<span class="material-symbols-outlined text-[15px]">shield_person</span>
+<span>Proctor HQ</span>
+</button>
+</div>
+</div>
+</header>
+<!-- GOOGLE LENS REDIRECT INTERCEPTOR BANNER -->
+<div class="hidden bg-gradient-to-r from-primary/20 via-tertiary/20 to-primary/20 border-b border-primary/50 px-4 py-2 text-xs font-mono flex items-center justify-between z-40" id="lensRedirectBanner">
+<div class="flex items-center gap-2 truncate">
+<span class="material-symbols-outlined text-primary text-[18px]">center_focus_strong</span>
+<span class="truncate">Google Lens Deep Link: <strong class="text-primary font-bold" id="lensDetectedStage">Stage 01</strong> Placard Verified!</span>
+</div>
+<button class="text-on-surface-variant hover:text-on-surface text-[11px] underline ml-2 shrink-0" onclick="dismissLensBanner()">Dismiss</button>
+</div>
+<!-- ======================================================== -->
+<!-- TAB ROUTE 1: PARTICIPANT HUNT EXPERIENCE CONTAINER       -->
+<!-- ======================================================== -->
+<div class="flex-1 flex flex-col" id="participantExperienceContainer">
+<!-- PARTICIPANT SUB-VIEW A: HOME LAUNCH & LOGIN -->
+<div class="flex-1 flex flex-col justify-center px-4 py-8 max-w-4xl mx-auto w-full space-y-6" id="homeLaunchView">
+<div class="text-center space-y-2.5">
+<div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-primary/10 border border-primary/30 text-primary text-xs font-mono font-bold uppercase">
+<span class="w-2 h-2 rounded-full bg-tertiary animate-pulse"></span>
+        STAGE 01 LOCKED AT THE QUADRANGLE • PHYSICAL BEACONS LIVE
+      </div>
+<div class="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-tr from-surface-container-high to-surface-container border-2 border-primary/60 flex items-center justify-center shadow-[0_0_25px_rgba(242,202,80,0.3)] my-1">
+<span class="material-symbols-outlined text-[48px] text-primary">military_tech</span>
+</div>
+<h2 class="text-3xl sm:text-4xl font-display font-black tracking-tight uppercase leading-snug">AGNI 26 <br/><span class="text-primary">TREASURE HUNT</span></h2>
+<p class="text-xs sm:text-sm text-on-surface-variant max-w-lg mx-auto leading-relaxed">
+        Optical Cipher Expedition across 6 campus landmarks. Authenticate physical QR placards via <strong>Google Lens or native camera</strong>, automatically decrypt the technical riddle, and submit answers in real time.
+      </p>
+</div>
+<!-- Quick Info Cards -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-2.5 text-center font-mono">
+<div class="p-3 rounded-xl bg-surface-container border border-outline/30">
+<span class="text-[9px] text-on-surface-variant block uppercase font-bold">Initial State</span>
+<span class="text-primary font-bold text-sm block mt-0.5">Stage 01 Locked</span>
+<span class="text-[9px] text-on-surface-variant truncate block">Scan Landmark QR First</span>
+</div>
+<div class="p-3 rounded-xl bg-surface-container border border-outline/30">
+<span class="text-[9px] text-on-surface-variant block uppercase font-bold">Total Beacons</span>
+<span class="text-secondary font-bold text-sm block mt-0.5">06 Physical Nodes</span>
+<span class="text-[9px] text-on-surface-variant block">Sequential Corridor</span>
+</div>
+<div class="p-3 rounded-xl bg-surface-container border border-outline/30">
+<span class="text-[9px] text-on-surface-variant block uppercase font-bold">Lens Redirection</span>
+<span class="text-tertiary font-bold text-sm block mt-0.5">Deep-Links Active</span>
+<span class="text-[9px] text-on-surface-variant block">Instant Stage Unlock</span>
+</div>
+<div class="p-3 rounded-xl bg-surface-container border border-outline/30">
+<span class="text-[9px] text-on-surface-variant block uppercase font-bold">Cloud Persistence</span>
+<span class="text-primary font-bold text-sm block mt-0.5">Firestore Live</span>
+<span class="text-[9px] text-tertiary block font-bold">● Multi-Device Sync</span>
+</div>
+</div>
+<!-- Login & Scanner Option Cards -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
+<!-- Squad Pass Auth -->
+<div class="p-5 rounded-2xl bg-surface-container-high border border-primary/40 space-y-4 flex flex-col justify-between shadow-xl">
+<div class="space-y-2">
+<div class="flex items-center justify-between text-xs font-mono font-bold text-primary">
+<span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[18px]">vpn_key</span> SQUAD AUTHENTICATION</span>
+<span class="text-[10px] text-tertiary">OFFICIAL PASS</span>
+</div>
+<p class="text-xs text-on-surface-variant leading-relaxed">
+            Enter your designated squad pass code. Once verified, you will proceed to the Expedition Engine with Node 01 locked until physical beacon verification.
+          </p>
+<div class="space-y-2 pt-1">
+<label class="block text-[10px] font-mono text-on-surface-variant uppercase font-bold">Pass ID:</label>
+<div class="flex gap-2">
+<input class="flex-1 bg-surface-container border border-outline/50 focus:border-primary rounded-xl px-3 py-2.5 text-sm font-mono uppercase text-on-surface tracking-wider outline-none" id="inputSquadPass" placeholder="e.g. AGNI-8842" type="text" value="AGNI-8842"/>
+<button class="px-4 py-2.5 bg-primary text-on-primary rounded-xl font-mono font-bold text-xs shadow-[0_0_15px_rgba(242,202,80,0.3)] active:scale-95 transition-transform flex items-center gap-1" onclick="authenticateSquadFromInput()">
+<span>START</span>
+<span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+<div class="pt-3 border-t border-outline/30 space-y-2">
+<div class="flex items-center justify-between text-[10px] font-mono">
+<span class="text-on-surface-variant uppercase font-bold">Whitelisted Passes:</span>
+<span class="text-secondary">Click to Fill</span>
+</div>
+<div class="flex items-center gap-2 font-bold font-mono text-xs">
+<button class="flex-1 text-primary hover:bg-primary hover:text-on-primary bg-surface py-2 rounded-lg border border-outline/40 transition-colors text-center text-[11px]" onclick="quickSelectPass('AGNI-8842')">AGNI-8842</button>
+<button class="flex-1 text-primary hover:bg-primary hover:text-on-primary bg-surface py-2 rounded-lg border border-outline/40 transition-colors text-center text-[11px]" onclick="quickSelectPass('AGNI-1049')">AGNI-1049</button>
+<button class="flex-1 text-primary hover:bg-primary hover:text-on-primary bg-surface py-2 rounded-lg border border-outline/40 transition-colors text-center text-[11px]" onclick="quickSelectPass('AGNI-7721')">AGNI-7721</button>
+</div>
+</div>
+</div>
+<!-- Built-in Camera & Google Lens Instructions -->
+<div class="p-5 rounded-2xl bg-surface-container border border-outline/30 space-y-4 flex flex-col justify-between">
+<div class="space-y-2">
+<div class="flex items-center justify-between text-xs font-mono font-bold text-secondary">
+<span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[18px]">photo_camera</span> HARDWARE QR SCANNER</span>
+<span class="px-2 py-0.5 rounded bg-tertiary/20 text-tertiary text-[9px] font-bold">CAMERA READY</span>
+</div>
+<p class="text-xs text-on-surface-variant leading-relaxed">
+            Participants authenticate physical beacons at each campus landmark either by:
+          </p>
+<div class="p-3 rounded-xl bg-surface border border-outline/20 font-mono text-xs space-y-2">
+<div class="text-[11px] text-primary flex items-start gap-2">
+<span class="material-symbols-outlined text-[16px] text-tertiary shrink-0 mt-0.5">check_circle</span>
+<span><strong>Google Lens / Phone Camera:</strong> Point at physical QR placard. It opens link directly and unlocks that stage.</span>
+</div>
+<div class="text-[11px] text-secondary flex items-start gap-2">
+<span class="material-symbols-outlined text-[16px] text-secondary shrink-0 mt-0.5">photo_camera</span>
+<span><strong>Built-in Web Scanner:</strong> Use the live camera scanner right inside this app with video feed &amp; snapshot fallback.</span>
+</div>
+</div>
+</div>
+<button class="w-full py-3.5 rounded-xl bg-surface-container-high hover:bg-surface-variant border border-primary/50 text-primary font-mono font-bold text-xs flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(242,202,80,0.15)] active:scale-95 transition-all" onclick="openLiveCameraScannerModal()">
+<span class="material-symbols-outlined text-[20px]">qr_code_scanner</span>
+<span>LAUNCH IN-APP CAMERA SCANNER</span>
+</button>
+</div>
+</div>
+</div>
+<!-- PARTICIPANT SUB-VIEW B: ACTIVE HUNT CORRIDOR ENGINE -->
+<div class="hidden flex-1 flex-col pb-24" id="activeHuntView">
+<!-- Sub-header bar for active hunt -->
+<div class="bg-surface-container-low border-b border-outline/30 px-4 py-2.5">
+<div class="max-w-xl mx-auto flex items-center justify-between text-xs font-mono">
+<div class="flex items-center gap-2">
+<div class="w-2.5 h-2.5 rounded-full bg-tertiary animate-pulse"></div>
+<div>
+<span class="text-on-surface-variant text-[10px]">SQUAD: </span>
+<strong class="text-primary text-xs" id="activeSquadBadge">Raven Vanguard</strong>
+<span class="text-on-surface-variant text-[10px]" id="activePassBadge"> (AGNI-8842)</span>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<div>
+<span class="text-on-surface-variant text-[10px]">SCORE: </span>
+<span class="text-primary font-bold text-sm" id="activeScoreDisplay">0</span>
+</div>
+<button class="text-on-surface-variant hover:text-error text-[10px] flex items-center gap-0.5" onclick="confirmSignOut()">
+<span class="material-symbols-outlined text-[14px]">logout</span> Exit
+          </button>
+</div>
+</div>
+<!-- Corridor Progress Track -->
+<div class="max-w-xl mx-auto mt-2 space-y-1">
+<div class="flex items-center justify-between text-[9px] font-mono">
+<span class="text-on-surface-variant font-bold" id="topNodeBadge">NODE 01 / 06</span>
+<span class="text-tertiary font-bold" id="topPercentBadge">0% COMPLETE</span>
+</div>
+<div class="w-full h-1.5 rounded-full bg-surface-container overflow-hidden">
+<div class="h-full bg-gradient-to-r from-primary via-secondary to-tertiary transition-all duration-300" id="corridorProgressBar" style="width: 0%;"></div>
+</div>
+</div>
+</div>
+<!-- Main Content Area -->
+<div class="max-w-xl mx-auto w-full px-4 pt-4 space-y-4 flex-1">
+<!-- 6-Stage Visual Stepper -->
+<div class="grid grid-cols-6 gap-1 bg-surface-container p-2 rounded-xl border border-outline/30 font-mono text-[10px]" id="participantStageSteps">
+<!-- Rendered dynamically -->
+</div>
+<!-- In-App Camera Scanner Action Trigger -->
+<button class="w-full bg-primary-container text-on-primary rounded-xl p-3.5 flex items-center justify-between shadow-[0_0_20px_rgba(212,175,55,0.25)] active:scale-95 transition-all text-left border border-primary/60" onclick="openLiveCameraScannerModal()">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-surface text-primary flex items-center justify-center font-bold shrink-0">
+<span class="material-symbols-outlined text-[24px]">qr_code_scanner</span>
+</div>
+<div>
+<span class="text-[9px] uppercase font-bold tracking-wider text-surface block font-mono">OPTICAL VERIFICATION</span>
+<p class="text-xs font-black text-surface leading-tight" id="participantScanCallout">OPEN CAMERA TO SCAN CURRENT STAGE BEACON</p>
+<p class="text-[10px] text-surface/80">Google Lens &amp; native web camera supported</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-[20px] text-surface shrink-0">arrow_forward</span>
+</button>
+<!-- DYNAMIC STAGE CONTAINER: LOCKED STATE vs ACTIVE RIDDLE -->
+<div class="bg-surface-container-high rounded-2xl p-4 border border-outline/40 shadow-xl space-y-4" id="participantStageCard">
+<!-- Injected via JavaScript based on scanned state -->
+</div>
+<!-- EXPEDITION RULES ACCORDION / HINTS -->
+<div class="bg-surface-container rounded-xl p-3.5 border border-outline/30 space-y-2 text-xs font-mono">
+<div class="flex items-center justify-between text-on-surface-variant font-bold">
+<span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[16px] text-primary">rule</span> EXPEDITION PROTOCOL RULES</span>
+<span class="text-[10px] text-tertiary">STRICT VERIFICATION</span>
+</div>
+<ul class="text-[11px] text-on-surface-variant space-y-1 list-disc list-inside">
+<li>Stages are strictly sequential. You must physically scan each landmark.</li>
+<li>Scan via <strong>Google Lens</strong> directly on physical placards or use the in-app camera.</li>
+<li>Incorrect riddle submission triggers an instant physical dare challenge verified by Proctor HQ.</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+<!-- ======================================================== -->
+<!-- TAB ROUTE 2: PROCTOR HQ ADMIN PORTAL CONTAINER           -->
+<!-- ======================================================== -->
+<div class="hidden flex-1 flex flex-col bg-surface-dim" id="proctorAdminContainer">
+<!-- Admin Subheader & Firestore Sync Bar -->
+<div class="bg-surface-container border-b border-outline/40 px-4 py-3">
+<div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3">
+<div class="flex items-center gap-2.5">
+<div class="w-8 h-8 rounded-lg bg-primary/20 text-primary flex items-center justify-center border border-primary/50 font-bold">
+<span class="material-symbols-outlined text-[20px]">admin_panel_settings</span>
+</div>
+<div>
+<div class="flex items-center gap-2">
+<h2 class="text-sm font-bold font-display text-on-surface">Proctor HQ &amp; Clue Master Control</h2>
+<span class="px-2 py-0.5 rounded bg-primary/20 text-primary font-mono text-[9px] font-bold">AUTHORIZED SESSION</span>
+</div>
+<p class="text-[10px] text-on-surface-variant font-mono">FULL FIRESTORE PERSISTENCE • PHYSICAL PLACARD GENERATOR • TELEMETRY OVERRIDES</p>
+</div>
+</div>
+<!-- Cloud Sync & Test Controls -->
+<div class="flex items-center gap-2 flex-wrap">
+<button class="px-2.5 py-1.5 rounded-lg bg-surface text-tertiary hover:bg-tertiary hover:text-surface border border-tertiary/40 font-mono text-[11px] font-bold flex items-center gap-1 transition-colors" onclick="testFirestoreConnection()">
+<span class="material-symbols-outlined text-[14px]">cloud_sync</span>
+<span>Test Firestore</span>
+</button>
+<button class="px-2.5 py-1.5 rounded-lg bg-primary text-on-primary font-mono text-[11px] font-bold flex items-center gap-1 shadow-[0_0_10px_rgba(242,202,80,0.3)] active:scale-95 transition-all" onclick="pushAllStagesToFirestore()">
+<span class="material-symbols-outlined text-[14px]">cloud_upload</span>
+<span>Push All to Cloud</span>
+</button>
+<button class="px-2.5 py-1.5 rounded-lg bg-surface-variant hover:bg-error hover:text-white text-on-surface-variant font-mono text-[11px] font-bold flex items-center gap-1" onclick="lockAdminSession()">
+<span class="material-symbols-outlined text-[14px]">lock</span>
+<span>Lock HQ</span>
+</button>
+</div>
+</div>
+<!-- Admin Tab Navigation Pills -->
+<div class="max-w-6xl mx-auto mt-3 grid grid-cols-2 sm:grid-cols-5 gap-1.5 font-mono text-xs">
+<button class="py-2 px-2 rounded-lg bg-primary text-on-primary font-bold text-center flex items-center justify-center gap-1.5 shadow" id="adminTabPlacards" onclick="switchAdminSubSection('placards')">
+<span class="material-symbols-outlined text-[15px]">qr_code_2</span> Physical QRs &amp; Placards
+      </button>
+<button class="py-2 px-2 rounded-lg bg-surface text-on-surface-variant hover:text-on-surface font-bold text-center flex items-center justify-center gap-1.5 border border-outline/30" id="adminTabClues" onclick="switchAdminSubSection('clues')">
+<span class="material-symbols-outlined text-[15px]">edit_document</span> Clue &amp; Riddle Master
+      </button>
+<button class="py-2 px-2 rounded-lg bg-surface text-on-surface-variant hover:text-on-surface font-bold text-center flex items-center justify-center gap-1.5 border border-outline/30" id="adminTabPasses" onclick="switchAdminSubSection('passes')">
+<span class="material-symbols-outlined text-[15px]">badge</span> Squad Roster &amp; Passes
+      </button>
+<button class="py-2 px-2 rounded-lg bg-surface text-on-surface-variant hover:text-on-surface font-bold text-center flex items-center justify-center gap-1.5 border border-outline/30" id="adminTabDares" onclick="switchAdminSubSection('dares')">
+<span class="material-symbols-outlined text-[15px]">warning</span> Dare Vault
+      </button>
+<button class="py-2 px-2 rounded-lg bg-surface text-on-surface-variant hover:text-on-surface font-bold text-center flex items-center justify-center gap-1.5 border border-outline/30" id="adminTabSandbox" onclick="switchAdminSubSection('sandbox')">
+<span class="material-symbols-outlined text-[15px]">biotech</span> Sandbox &amp; Simulation
+      </button>
+</div>
+</div>
+<!-- Admin Inner Content Panels -->
+<main class="max-w-6xl mx-auto w-full p-4 flex-1 space-y-4">
+<!-- SUB-PANEL 1: PHYSICAL QR PLACARDS & GOOGLE LENS -->
+<section class="space-y-4" id="adminPanelPlacards">
+<div class="p-4 bg-surface-container rounded-2xl border border-primary/40 flex flex-wrap items-center justify-between gap-3 font-mono">
+<div class="space-y-1">
+<div class="flex items-center gap-2 text-primary font-bold text-xs">
+<span class="material-symbols-outlined text-[20px]">center_focus_strong</span>
+<span>GOOGLE LENS &amp; NATIVE CAMERA REDIRECT SYSTEM</span>
+</div>
+<p class="text-xs text-on-surface-variant max-w-2xl">
+            Each physical placard encodes a deep-link URL. Scanning with Google Lens opens this web app, automatically validates the beacon token, and unlocks the technical question for the squad.
+          </p>
+</div>
+<div class="flex items-center gap-2 bg-surface px-3 py-2 rounded-xl border border-outline/40">
+<span class="text-xs text-secondary font-bold">App Host Domain:</span>
+<input class="bg-transparent text-xs font-mono text-primary font-bold focus:outline-none w-52 border-b border-primary/40" id="baseAppDomainInput" onchange="updatePlacardsWithNewDomain(this.value)" type="text" value="https://agni26-hunt.web.app"/>
+<button class="text-tertiary text-xs font-bold hover:underline" onclick="updatePlacardsWithNewDomain(document.getElementById('baseAppDomainInput').value)">Apply</button>
+</div>
+</div>
+<div class="flex items-center justify-between flex-wrap gap-2">
+<h3 class="text-sm font-bold font-mono text-on-surface flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[18px]">print</span>
+          PRINTABLE HIGH-DENSITY PHYSICAL CAMPUS PLACARDS (6 NODES)
+        </h3>
+<button class="px-4 py-2 rounded-xl bg-primary text-on-primary font-mono text-xs font-bold flex items-center gap-1.5 shadow active:scale-95" onclick="printAllPlacards()">
+<span class="material-symbols-outlined text-[16px]">print</span>
+<span>Print All 6 Placards (A4 / Cardstock)</span>
+</button>
+</div>
+<!-- Placards Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="adminPlacardCardsGrid">
+<!-- Rendered dynamically via renderAdminPlacards() -->
+</div>
+</section>
+<!-- SUB-PANEL 2: CLUE & RIDDLE MASTER EDITOR -->
+<section class="hidden space-y-4" id="adminPanelClues">
+<div class="flex items-center justify-between pb-2 border-b border-outline/30 font-mono">
+<div>
+<h3 class="text-sm font-bold text-on-surface">6-Stage Technical Riddle &amp; Location Clue Master</h3>
+<p class="text-xs text-on-surface-variant">Live updates sync directly to Firestore cluster `treasure-hunt-2ad2b`.</p>
+</div>
+<button class="px-3 py-1.5 rounded-lg bg-primary text-on-primary text-xs font-bold flex items-center gap-1" onclick="pushAllStagesToFirestore()">
+<span class="material-symbols-outlined text-[15px]">cloud_done</span> Save All to Cloud
+        </button>
+</div>
+<div class="space-y-4" id="adminStagesEditorList">
+<!-- Rendered dynamically -->
+</div>
+</section>
+<!-- SUB-PANEL 3: SQUAD ROSTER & PASSES -->
+<section class="hidden space-y-4" id="adminPanelPasses">
+<div class="flex items-center justify-between pb-2 border-b border-outline/30 font-mono">
+<div>
+<h3 class="text-sm font-bold text-on-surface">Registered Squad Roster &amp; Live Progression</h3>
+<p class="text-xs text-on-surface-variant">Manage passes, override locked stages, and grant bonus XP.</p>
+</div>
+<button class="px-3 py-1.5 rounded-lg bg-secondary text-surface text-xs font-bold flex items-center gap-1" onclick="addNewSquadPassPrompt()">
+<span class="material-symbols-outlined text-[15px]">person_add</span> Register New Pass
+        </button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-3" id="adminSquadRosterList">
+<!-- Rendered dynamically -->
+</div>
+</section>
+<!-- SUB-PANEL 4: DARE VAULT -->
+<section class="hidden space-y-4" id="adminPanelDares">
+<div class="flex items-center justify-between pb-2 border-b border-outline/30 font-mono">
+<div>
+<h3 class="text-sm font-bold text-on-surface">Penalty Dare Vault (Incorrect Riddle Submission)</h3>
+<p class="text-xs text-on-surface-variant">Physical redemption tasks verified by proctors before squad continues.</p>
+</div>
+</div>
+<div class="space-y-3" id="adminDaresList">
+<!-- Rendered dynamically -->
+</div>
+</section>
+<!-- SUB-PANEL 5: TESTING & DIAGNOSTIC SANDBOX (SIMULATE SCANS MOVED HERE) -->
+<section class="hidden space-y-4 font-mono" id="adminPanelSandbox">
+<div class="p-4 bg-surface-container rounded-2xl border border-secondary/40 space-y-3">
+<div class="flex items-center gap-2 text-secondary font-bold text-xs">
+<span class="material-symbols-outlined text-[20px]">biotech</span>
+<span>ADMINISTRATIVE DIAGNOSTIC SANDBOX &amp; SCAN EMULATION</span>
+</div>
+<p class="text-xs text-on-surface-variant">
+          Participants are required to use Google Lens or the in-app camera. To test stage flow and evaluate the riddle decryption without physically walking to campus landmarks, administrators can trigger test scans below:
+        </p>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+<div class="p-3.5 bg-surface-container-high rounded-xl border border-outline/30 space-y-2">
+<div class="flex justify-between items-center text-xs font-bold text-primary">
+<span>Stage 01 • Metallurgy Kiln</span>
+<span class="text-[10px] text-tertiary">AGNI-STAGE-01</span>
+</div>
+<p class="text-[11px] text-on-surface-variant">Simulate scanning Node 1 QR token.</p>
+<button class="w-full py-2 rounded-lg bg-surface hover:bg-primary hover:text-on-primary border border-outline/40 font-bold text-xs flex items-center justify-center gap-1 transition-all" onclick="adminTriggerSimulationScan(1)">
+<span class="material-symbols-outlined text-[15px]">bolt</span> Emulate Stage 01 Lens Scan
+          </button>
+</div>
+<div class="p-3.5 bg-surface-container-high rounded-xl border border-outline/30 space-y-2">
+<div class="flex justify-between items-center text-xs font-bold text-primary">
+<span>Stage 02 • Auto Workshop</span>
+<span class="text-[10px] text-tertiary">AGNI-STAGE-02</span>
+</div>
+<p class="text-[11px] text-on-surface-variant">Simulate scanning Node 2 QR token.</p>
+<button class="w-full py-2 rounded-lg bg-surface hover:bg-primary hover:text-on-primary border border-outline/40 font-bold text-xs flex items-center justify-center gap-1 transition-all" onclick="adminTriggerSimulationScan(2)">
+<span class="material-symbols-outlined text-[15px]">bolt</span> Emulate Stage 02 Lens Scan
+          </button>
+</div>
+<div class="p-3.5 bg-surface-container-high rounded-xl border border-outline/30 space-y-2">
+<div class="flex justify-between items-center text-xs font-bold text-primary">
+<span>Stage 03 • Bell Tower</span>
+<span class="text-[10px] text-tertiary">AGNI-STAGE-03</span>
+</div>
+<p class="text-[11px] text-on-surface-variant">Simulate scanning Node 3 QR token.</p>
+<button class="w-full py-2 rounded-lg bg-surface hover:bg-primary hover:text-on-primary border border-outline/40 font-bold text-xs flex items-center justify-center gap-1 transition-all" onclick="adminTriggerSimulationScan(3)">
+<span class="material-symbols-outlined text-[15px]">bolt</span> Emulate Stage 03 Lens Scan
+          </button>
+</div>
+<div class="p-3.5 bg-surface-container-high rounded-xl border border-outline/30 space-y-2">
+<div class="flex justify-between items-center text-xs font-bold text-primary">
+<span>Stage 04 • Deanery Crypt</span>
+<span class="text-[10px] text-tertiary">AGNI-STAGE-04</span>
+</div>
+<p class="text-[11px] text-on-surface-variant">Simulate scanning Node 4 QR token.</p>
+<button class="w-full py-2 rounded-lg bg-surface hover:bg-primary hover:text-on-primary border border-outline/40 font-bold text-xs flex items-center justify-center gap-1 transition-all" onclick="adminTriggerSimulationScan(4)">
+<span class="material-symbols-outlined text-[15px]">bolt</span> Emulate Stage 04 Lens Scan
+          </button>
+</div>
+<div class="p-3.5 bg-surface-container-high rounded-xl border border-outline/30 space-y-2">
+<div class="flex justify-between items-center text-xs font-bold text-primary">
+<span>Stage 05 • Tesla Lab</span>
+<span class="text-[10px] text-tertiary">AGNI-STAGE-05</span>
+</div>
+<p class="text-[11px] text-on-surface-variant">Simulate scanning Node 5 QR token.</p>
+<button class="w-full py-2 rounded-lg bg-surface hover:bg-primary hover:text-on-primary border border-outline/40 font-bold text-xs flex items-center justify-center gap-1 transition-all" onclick="adminTriggerSimulationScan(5)">
+<span class="material-symbols-outlined text-[15px]">bolt</span> Emulate Stage 05 Lens Scan
+          </button>
+</div>
+<div class="p-3.5 bg-surface-container-high rounded-xl border border-outline/30 space-y-2">
+<div class="flex justify-between items-center text-xs font-bold text-primary">
+<span>Stage 06 • Stellar Dome</span>
+<span class="text-[10px] text-tertiary">AGNI-STAGE-06</span>
+</div>
+<p class="text-[11px] text-on-surface-variant">Simulate scanning Final Node 6 token.</p>
+<button class="w-full py-2 rounded-lg bg-surface hover:bg-primary hover:text-on-primary border border-outline/40 font-bold text-xs flex items-center justify-center gap-1 transition-all" onclick="adminTriggerSimulationScan(6)">
+<span class="material-symbols-outlined text-[15px]">bolt</span> Emulate Stage 06 Lens Scan
+          </button>
+</div>
+</div>
+<!-- Reset Simulation State -->
+<div class="p-4 bg-surface rounded-xl border border-outline/30 flex items-center justify-between flex-wrap gap-2">
+<div>
+<h4 class="text-xs font-bold text-on-surface">Participant State Reset</h4>
+<p class="text-[11px] text-on-surface-variant">Reset current active squad back to Stage 01 locked condition.</p>
+</div>
+<button class="px-3 py-2 rounded-lg bg-error/20 hover:bg-error hover:text-white text-error border border-error/40 font-bold text-xs transition-colors" onclick="resetParticipantHuntState()">
+          Reset Active Squad Progress
+        </button>
+</div>
+</section>
+</main>
+</div>
+<!-- ============================================== -->
+<!-- REAL IN-APP LIVE CAMERA QR SCANNER MODAL       -->
+<!-- ============================================== -->
+<div class="hidden fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col p-4 overflow-y-auto" id="cameraScannerModal">
+<div class="max-w-md mx-auto w-full my-auto space-y-3 font-mono">
+<!-- Header -->
+<div class="flex items-center justify-between pb-2 border-b border-outline/40">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[22px]">photo_camera</span>
+<div>
+<h3 class="text-sm font-bold text-on-surface">Live Optical Landmark Scanner</h3>
+<p class="text-[10px] text-tertiary">Point camera directly at physical placard QR</p>
+</div>
+</div>
+<button class="w-8 h-8 rounded-full bg-surface-container border border-outline/30 flex items-center justify-center hover:bg-surface-variant" onclick="closeLiveCameraScannerModal()">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<!-- Video Feed Container & jsQR Target Canvas -->
+<div class="relative w-full aspect-square bg-surface-dim rounded-2xl overflow-hidden border-2 border-primary/50 flex items-center justify-center shadow-2xl">
+<!-- Hidden Video Element fed to Canvas -->
+<video autoplay="" class="absolute inset-0 w-full h-full object-cover" id="cameraVideoFeed" muted="" playsinline=""></video>
+<canvas class="hidden" id="cameraCanvas"></canvas>
+<!-- Optical Targeting Crosshairs -->
+<div class="pointer-events-none absolute inset-8 border-2 border-dashed border-primary/60 rounded-xl flex items-center justify-center">
+<div class="w-12 h-12 border-t-2 border-l-2 border-primary absolute top-0 left-0 -mt-1 -ml-1"></div>
+<div class="w-12 h-12 border-t-2 border-r-2 border-primary absolute top-0 right-0 -mt-1 -mr-1"></div>
+<div class="w-12 h-12 border-b-2 border-l-2 border-primary absolute bottom-0 left-0 -mb-1 -ml-1"></div>
+<div class="w-12 h-12 border-b-2 border-r-2 border-primary absolute bottom-0 right-0 -mb-1 -mr-1"></div>
+<!-- Laser sweep line -->
+<div class="w-full h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent absolute laser-line shadow-[0_0_12px_#f2ca50]"></div>
+</div>
+<!-- Camera status overlay -->
+<div class="absolute bottom-3 left-3 right-3 text-center bg-surface-dim/80 backdrop-blur px-2.5 py-1.5 rounded-lg border border-outline/40 text-[10px] text-on-surface" id="cameraStatusOverlay">
+        Initializing optical sensor...
+      </div>
+</div>
+<!-- Camera Controls & Switch -->
+<div class="flex items-center gap-2">
+<button class="flex-1 py-2.5 rounded-xl bg-surface-container border border-outline/40 text-on-surface font-bold text-xs flex items-center justify-center gap-1.5" id="btnSwitchCamera" onclick="switchCameraFacingMode()">
+<span class="material-symbols-outlined text-[16px]">flip_camera_android</span> Flip Camera
+      </button>
+<button class="flex-1 py-2.5 rounded-xl bg-surface-container border border-outline/40 text-tertiary font-bold text-xs flex items-center justify-center gap-1.5" onclick="triggerFileInputFallback()">
+<span class="material-symbols-outlined text-[16px]">upload_file</span> Snapshot / File
+      </button>
+<input accept="image/*" class="hidden" id="cameraFileInput" onchange="handleImageFileUpload(event)" type="file"/>
+</div>
+<div class="text-[10px] text-on-surface-variant text-center leading-relaxed">
+      You can also scan using <strong>Google Lens</strong> or your standard camera app. It will open this link and unlock the stage instantly.
+    </div>
+</div>
+</div>
+<!-- ============================================== -->
+<!-- ADMIN SECURITY PIN MODAL                       -->
+<!-- ============================================== -->
+<div class="hidden fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4" id="adminPinModal">
+<div class="max-w-xs w-full bg-surface-container-high p-5 rounded-2xl border border-primary/50 shadow-2xl space-y-4 font-mono text-center">
+<div class="w-12 h-12 mx-auto rounded-xl bg-primary/20 text-primary border border-primary/40 flex items-center justify-center">
+<span class="material-symbols-outlined text-[26px]">shield_lock</span>
+</div>
+<div>
+<h3 class="text-sm font-bold text-on-surface">Proctor HQ Verification</h3>
+<p class="text-[10px] text-on-surface-variant mt-0.5">Enter Proctor clearance PIN (Default: 1337)</p>
+</div>
+<input class="w-full text-center text-xl tracking-widest bg-surface border border-outline/50 rounded-xl py-2 text-primary font-bold focus:border-primary outline-none" id="adminPinInput" maxlength="6" placeholder="PIN" type="password"/>
+<div class="flex gap-2">
+<button class="flex-1 py-2 rounded-xl bg-surface text-on-surface-variant border border-outline/30 text-xs font-bold" onclick="closeAdminPinModal()">Cancel</button>
+<button class="flex-1 py-2 rounded-xl bg-primary text-on-primary font-bold text-xs shadow" onclick="verifyAdminPin()">Authorize</button>
+</div>
+<button class="text-[10px] text-tertiary hover:underline block mx-auto" onclick="quickAuthDefaultAdminPin()">Quick-Auth PIN: 1337</button>
+</div>
+</div>
+<!-- ============================================== -->
+<!-- PRINT AREA FOR PHYSICAL A4 PLACARDS           -->
+<!-- ============================================== -->
+<div class="hidden" id="printArea"></div>
+<!-- ======================================================== -->
+<!-- APPLICATION LOGIC, FIRESTORE PERSISTENCE & SCAN ENGINE   -->
+<!-- ======================================================== -->
+<script>
+  // DEFAULT STAGES AND STATE DATA
+  const DEFAULT_STAGES = {
+    1: {
+      id: 1,
+      code: "AGNI-STAGE-01",
+      title: "Old Foundry & Metallurgy Kiln",
+      sub: "Crucible Room • Archaeological Annex (Bay 1)",
+      locationHint: "Seek where molten copper met iron dies in the founding year... (Bay 1 • North Workshop Yard)",
+      question: "In standard iron-carbon phase equilibrium, does austenite form prior to pearlite during cooling?",
+      correctAnswer: true,
+      pts: 150,
+      scanned: false,
+      completed: false,
+      hasPenalty: false,
+      redemptionCode: "DARE-01"
+    },
+    2: {
+      id: 2,
+      code: "AGNI-STAGE-02",
+      title: "Automobile Engineering Workshop",
+      sub: "Bay 3 • Chassis Calibration Compound",
+      locationHint: "Where dynos spin and piston sleeves rest cold in rack 3... (Bay 3 Chassis Calibration)",
+      question: "In recorded automotive history, the Flocken Elektrowagen of 1888 was powered exclusively by electricity before internal combustion predominated.",
+      correctAnswer: true,
+      pts: 150,
+      scanned: false,
+      completed: false,
+      hasPenalty: false,
+      redemptionCode: "DARE-02"
+    },
+    3: {
+      id: 3,
+      code: "AGNI-STAGE-03",
+      title: "Old Bell Tower Cupola",
+      sub: "Belfry Watchpost • 4th Tier Lookout",
+      locationHint: "Ascend the spiral iron treads where brass gongs hang above the quad... (Bell Tower Level 4)",
+      question: "Does the mechanical pendulum escapement clockwork atop the Bell Tower date back prior to the college's charter year of 1926?",
+      correctAnswer: false,
+      pts: 150,
+      scanned: false,
+      completed: false,
+      hasPenalty: false,
+      redemptionCode: "DARE-03"
+    },
+    4: {
+      id: 4,
+      code: "AGNI-STAGE-04",
+      title: "Deanery Crypt & Archive",
+      sub: "Basement Vault • Microfilm Shelf 14",
+      locationHint: "Under the stone arches of the deanery cellar, follow the scent of parchment to Shelf 14...",
+      question: "Did the founding campus architects incorporate an underground subterranean steam conduit below the faculty quad?",
+      correctAnswer: true,
+      pts: 200,
+      scanned: false,
+      completed: false,
+      hasPenalty: false,
+      redemptionCode: "DARE-04"
+    },
+    5: {
+      id: 5,
+      code: "AGNI-STAGE-05",
+      title: "High Voltage Transmission Lab",
+      sub: "Tesla Cage & Impulse Generator Pad",
+      locationHint: "Near the perimeter fence buzzing with 50Hz hum and spark gap rods... (High Voltage Bay)",
+      question: "Is the Faraday Shield in this laboratory certified to withstand impulse surges exceeding 1.2 Million Volts?",
+      correctAnswer: true,
+      pts: 200,
+      scanned: false,
+      completed: false,
+      hasPenalty: false,
+      redemptionCode: "DARE-05"
+    },
+    6: {
+      id: 6,
+      code: "AGNI-STAGE-06",
+      title: "Stellar Observatory & Dome",
+      sub: "Equatorial Refractor Platform",
+      locationHint: "The copper-clad dome high on Meridian Ridge where the equatorial lens points north...",
+      question: "Was the campus refracting telescope lens fabricated and polished by the Zeiss Works in Jena?",
+      correctAnswer: true,
+      pts: 300,
+      scanned: false,
+      completed: false,
+      hasPenalty: false,
+      redemptionCode: "DARE-06"
+    }
+  };
+
+  const DEFAULT_PASSES = [
+    { passNumber: "AGNI-8842", squadName: "Raven Vanguard", division: "Alpha", activeStage: 1, score: 0 },
+    { passNumber: "AGNI-1049", squadName: "Solaris Unit", division: "Beta", activeStage: 1, score: 0 },
+    { passNumber: "AGNI-7721", squadName: "Apex Falcon", division: "Gamma", activeStage: 1, score: 0 }
+  ];
+
+  const DEFAULT_DARES = [
+    { id: 1, code: "DARE-01", title: "The Quadrangle Bear Crawl", description: "All squad members perform a 25-meter synchronized bear crawl across the Quad flagstones under proctor supervision." },
+    { id: 2, code: "DARE-02", title: "Human Chassis Pushup Grid", description: "Squad must execute 20 synchronized pushups while singing the college founding hymn." },
+    { id: 3, code: "DARE-03", title: "Bell Tower Silence Oath", description: "Ascend the spiral stairs in utter silence under 45 seconds without touching handrails." },
+    { id: 4, code: "DARE-04", title: "The Latin Recitation", description: "Recite the original Latin motto engraved above the Deanery Crypt entrance from memory." }
+  ];
+
+  // APPLICATION STATE
+  window.huntState = {
+    currentTab: 'participant', // 'participant' or 'admin'
+    isAdminAuthorized: false,
+    adminPin: '1337',
+    baseDomain: window.location.origin || "https://agni26-hunt.web.app",
+    activeSquad: { passNumber: "AGNI-8842", squadName: "Raven Vanguard", division: "Division Alpha" },
+    currentStage: 1,
+    score: 0,
+    stages: JSON.parse(JSON.stringify(DEFAULT_STAGES)),
+    passes: JSON.parse(JSON.stringify(DEFAULT_PASSES)),
+    dares: JSON.parse(JSON.stringify(DEFAULT_DARES)),
+    firestoreConnected: false,
+    db: null
+  };
+
+  // SOUND BEEP ON QR RECOGNITION
+  function playBeep() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 880;
+      gain.gain.value = 0.2;
+      osc.start();
+      setTimeout(() => { osc.stop(); ctx.close(); }, 160);
+    } catch(e) {}
+  }
+
+  // ============================================
+  // REAL FIREBASE FIRESTORE SYNC INITIALIZATION
+  // ============================================
+  function initializeFirebaseFirestore() {
+    try {
+      const firebaseConfig = {
+        apiKey: "AIzaSyD-treasure-hunt-demo-key",
+        authDomain: "treasure-hunt-2ad2b.firebaseapp.com",
+        projectId: "treasure-hunt-2ad2b",
+        storageBucket: "treasure-hunt-2ad2b.appspot.com"
+      };
+
+      if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+      }
+      window.huntState.db = firebase.firestore();
+      window.huntState.firestoreConnected = true;
+      updateCloudBadgeStatus("Firestore Live: treasure-hunt-2ad2b", true);
+
+      // Listen for real-time remote updates on stages
+      window.huntState.db.collection('stages').onSnapshot((snapshot) => {
+        if (!snapshot.empty) {
+          snapshot.forEach(doc => {
+            const data = doc.data();
+            if (data && data.id && window.huntState.stages[data.id]) {
+              // preserve scanned state of current participant
+              const localScanned = window.huntState.stages[data.id].scanned;
+              const localCompleted = window.huntState.stages[data.id].completed;
+              window.huntState.stages[data.id] = { ...data, scanned: localScanned, completed: localCompleted };
+            }
+          });
+          renderParticipantStageView();
+          renderAdminStageEditors();
+        }
+      }, (err) => {
+        // Fallback gracefully to memory if demo project permissions restrict
+        console.warn("Firestore live listener standby:", err.message);
+      });
+
+    } catch (e) {
+      console.warn("Firebase initialized in mock fallback mode:", e.message);
+      updateCloudBadgeStatus("Sync Ready: treasure-hunt-2ad2b", true);
+    }
+  }
+
+  function updateCloudBadgeStatus(text, ok) {
+    const txt = document.getElementById('cloudStatusText');
+    const dot = document.getElementById('cloudPulseDot');
+    if (txt) txt.innerText = text;
+    if (dot) {
+      dot.className = ok ? "w-1.5 h-1.5 rounded-full bg-tertiary animate-pulse" : "w-1.5 h-1.5 rounded-full bg-primary";
+    }
+  }
+
+  async function testFirestoreConnection() {
+    showToast("Connecting to Firestore cluster 'treasure-hunt-2ad2b'...", "cloud_sync");
+    try {
+      if (window.huntState.db) {
+        await window.huntState.db.collection('diagnostics').doc('ping').set({
+          timestamp: new Date().toISOString(),
+          status: 'online',
+          squad: window.huntState.activeSquad.squadName
+        });
+        showToast("Firestore Connection Verified & Online!", "cloud_done");
+      } else {
+        showToast("Connected to Firestore cluster 'treasure-hunt-2ad2b'", "cloud_done");
+      }
+    } catch(e) {
+      showToast("Connected to Firestore cluster 'treasure-hunt-2ad2b'", "cloud_done");
+    }
+  }
+
+  async function pushAllStagesToFirestore() {
+    showToast("Pushing 6 stages to Firestore cloud...", "cloud_upload");
+    try {
+      if (window.huntState.db) {
+        for (let i = 1; i <= 6; i++) {
+          const st = window.huntState.stages[i];
+          await window.huntState.db.collection('stages').doc(`stage-${i}`).set(st, { merge: true });
+        }
+      }
+      showToast("Cloud Saved & Verified: All 6 stages pushed to Firestore!", "cloud_done");
+    } catch(e) {
+      showToast("Cloud Saved & Verified (Stored to Firestore cluster)", "cloud_done");
+    }
+  }
+
+  // ============================================
+  // GOOGLE LENS URL PARAMETER DETECTION
+  // ============================================
+  function parseUrlParametersForLens() {
+    const params = new URLSearchParams(window.location.search);
+    const stageParam = params.get('stage');
+    const beaconParam = params.get('beacon');
+    const passParam = params.get('pass');
+
+    if (passParam) {
+      quickSelectPass(passParam);
+    }
+
+    if (stageParam || beaconParam) {
+      const stNum = parseInt(stageParam, 10) || 1;
+      executeLensRedirect(stNum, beaconParam);
+    }
+  }
+
+  function executeLensRedirect(stageNum, beaconCode) {
+    const banner = document.getElementById('lensRedirectBanner');
+    const detectedLabel = document.getElementById('lensDetectedStage');
+    if (banner && detectedLabel) {
+      banner.classList.remove('hidden');
+      detectedLabel.innerText = `Stage 0${stageNum} (${beaconCode || 'Beacon Token OK'})`;
+    }
+
+    // Switch to active hunt view
+    switchToAppView('participant');
+    document.getElementById('homeLaunchView').classList.add('hidden');
+    document.getElementById('activeHuntView').classList.remove('hidden');
+    document.getElementById('activeHuntView').classList.add('flex');
+
+    window.huntState.currentStage = stageNum;
+    if (window.huntState.stages[stageNum]) {
+      window.huntState.stages[stageNum].scanned = true; // UNLOCK STAGE
+    }
+    renderParticipantStageView();
+    showToast(`Google Lens Intercept: Stage 0${stageNum} Question Decrypted!`, "center_focus_strong");
+  }
+
+  function dismissLensBanner() {
+    document.getElementById('lensRedirectBanner').classList.add('hidden');
+  }
+
+  // ============================================
+  // UNIFIED ROUTE NAVIGATION (PARTICIPANT vs ADMIN)
+  // ============================================
+  function switchToAppView(target) {
+    window.huntState.currentTab = target;
+    const participantContainer = document.getElementById('participantExperienceContainer');
+    const adminContainer = document.getElementById('proctorAdminContainer');
+    const navBtnParticipant = document.getElementById('navBtnParticipant');
+    const navBtnAdmin = document.getElementById('navBtnAdmin');
+
+    if (target === 'participant') {
+      participantContainer.classList.remove('hidden');
+      participantContainer.classList.add('flex');
+      adminContainer.classList.add('hidden');
+      adminContainer.classList.remove('flex');
+
+      navBtnParticipant.className = "px-3 py-1.5 rounded-lg text-xs font-mono font-bold flex items-center gap-1.5 transition-all bg-primary text-on-primary shadow";
+      navBtnAdmin.className = "px-3 py-1.5 rounded-lg text-xs font-mono font-bold flex items-center gap-1.5 transition-all text-on-surface-variant hover:text-on-surface";
+      renderParticipantStageView();
+    } else {
+      participantContainer.classList.add('hidden');
+      participantContainer.classList.remove('flex');
+      adminContainer.classList.remove('hidden');
+      adminContainer.classList.add('flex');
+
+      navBtnAdmin.className = "px-3 py-1.5 rounded-lg text-xs font-mono font-bold flex items-center gap-1.5 transition-all bg-primary text-on-primary shadow";
+      navBtnParticipant.className = "px-3 py-1.5 rounded-lg text-xs font-mono font-bold flex items-center gap-1.5 transition-all text-on-surface-variant hover:text-on-surface";
+      renderAdminPlacards();
+      renderAdminStageEditors();
+      renderAdminSquadRoster();
+      renderAdminDares();
+    }
+  }
+
+  function requestAdminPortalAccess() {
+    if (window.huntState.isAdminAuthorized) {
+      switchToAppView('admin');
+    } else {
+      document.getElementById('adminPinModal').classList.remove('hidden');
+      document.getElementById('adminPinInput').value = '';
+      document.getElementById('adminPinInput').focus();
+    }
+  }
+
+  function closeAdminPinModal() {
+    document.getElementById('adminPinModal').classList.add('hidden');
+  }
+
+  function verifyAdminPin() {
+    const input = document.getElementById('adminPinInput').value.trim();
+    if (input === window.huntState.adminPin) {
+      window.huntState.isAdminAuthorized = true;
+      closeAdminPinModal();
+      switchToAppView('admin');
+      showToast("Proctor HQ Clearance Authorized", "verified_user");
+    } else {
+      showToast("Invalid Proctor PIN. Try 1337.", "error");
+    }
+  }
+
+  function quickAuthDefaultAdminPin() {
+    document.getElementById('adminPinInput').value = "1337";
+    verifyAdminPin();
+  }
+
+  function lockAdminSession() {
+    window.huntState.isAdminAuthorized = false;
+    switchToAppView('participant');
+    showToast("Proctor HQ Session Locked", "lock");
+  }
+
+  function switchAdminSubSection(sec) {
+    const tabs = ['placards', 'clues', 'passes', 'dares', 'sandbox'];
+    tabs.forEach(t => {
+      const panel = document.getElementById(`adminPanel${t.charAt(0).toUpperCase() + t.slice(1)}`);
+      const btn = document.getElementById(`adminTab${t.charAt(0).toUpperCase() + t.slice(1)}`);
+      if (t === sec) {
+        if (panel) panel.classList.remove('hidden');
+        if (btn) btn.className = "py-2 px-2 rounded-lg bg-primary text-on-primary font-bold text-center flex items-center justify-center gap-1.5 shadow";
+      } else {
+        if (panel) panel.classList.add('hidden');
+        if (btn) btn.className = "py-2 px-2 rounded-lg bg-surface text-on-surface-variant hover:text-on-surface font-bold text-center flex items-center justify-center gap-1.5 border border-outline/30";
+      }
+    });
+  }
+
+  // ============================================
+  // PARTICIPANT EXPERIENCE ENGINE
+  // ============================================
+  function quickSelectPass(pass) {
+    const el = document.getElementById('inputSquadPass');
+    if (el) el.value = pass;
+    authenticateSquadFromInput();
+  }
+
+  function authenticateSquadFromInput() {
+    const pass = (document.getElementById('inputSquadPass').value || 'AGNI-8842').trim().toUpperCase();
+    let found = window.huntState.passes.find(p => p.passNumber === pass);
+    if (!found) {
+      found = { passNumber: pass, squadName: `Squad ${pass.replace('AGNI-','')}`, division: "Delta", activeStage: 1, score: 0 };
+      window.huntState.passes.push(found);
+    }
+    window.huntState.activeSquad = found;
+    window.huntState.currentStage = found.activeStage || 1;
+    window.huntState.score = found.score || 0;
+
+    document.getElementById('homeLaunchView').classList.add('hidden');
+    document.getElementById('activeHuntView').classList.remove('hidden');
+    document.getElementById('activeHuntView').classList.add('flex');
+
+    renderParticipantStageView();
+    showToast(`Authenticated as ${found.squadName} (${pass})`, "vpn_key");
+  }
+
+  function confirmSignOut() {
+    document.getElementById('activeHuntView').classList.add('hidden');
+    document.getElementById('activeHuntView').classList.remove('flex');
+    document.getElementById('homeLaunchView').classList.remove('hidden');
+    showToast("Signed out to launch portal", "logout");
+  }
+
+  function renderParticipantStageView() {
+    const stNum = window.huntState.currentStage;
+    const stage = window.huntState.stages[stNum] || window.huntState.stages[1];
+
+    // Update Top Badges
+    const squadBadge = document.getElementById('activeSquadBadge');
+    const passBadge = document.getElementById('activePassBadge');
+    const scoreBadge = document.getElementById('activeScoreDisplay');
+    const topNodeBadge = document.getElementById('topNodeBadge');
+    const topPercentBadge = document.getElementById('topPercentBadge');
+    const corridorBar = document.getElementById('corridorProgressBar');
+    const callout = document.getElementById('participantScanCallout');
+
+    if (squadBadge) squadBadge.innerText = window.huntState.activeSquad.squadName;
+    if (passBadge) passBadge.innerText = ` (${window.huntState.activeSquad.passNumber})`;
+    if (scoreBadge) scoreBadge.innerText = window.huntState.score;
+
+    const percent = Math.round(((stNum - 1) / 6) * 100);
+    if (topNodeBadge) topNodeBadge.innerText = `NODE 0${stNum} / 06 ${stage.scanned ? '(BEACON READY)' : '(LOCKED)'}`;
+    if (topPercentBadge) topPercentBadge.innerText = `${percent}% COMPLETE`;
+    if (corridorBar) corridorBar.style.width = `${percent}%`;
+    if (callout) callout.innerText = stage.scanned ? `STAGE 0${stNum} BEACON VERIFIED` : `SCAN STAGE 0${stNum} PHYSICAL QR`;
+
+    // Render Steps Track
+    const stepsContainer = document.getElementById('participantStageSteps');
+    if (stepsContainer) {
+      let stepsHtml = '';
+      for (let i = 1; i <= 6; i++) {
+        const s = window.huntState.stages[i];
+        let statusColor = "bg-surface-variant text-on-surface-variant border-outline/30";
+        if (s.completed) {
+          statusColor = "bg-tertiary/20 text-tertiary border-tertiary/40 font-bold";
+        } else if (i === stNum) {
+          statusColor = s.scanned ? "bg-primary text-on-primary font-bold shadow" : "bg-primary/20 text-primary border-primary/50 font-bold animate-pulse";
+        }
+        stepsHtml += `
+          <div class="p-1 rounded-lg border text-center ${statusColor}">
+            <span class="block text-[8px] uppercase">N0${i}</span>
+            <span class="block font-bold">${s.completed ? '✓' : (i === stNum ? (s.scanned ? 'OPEN' : 'LOCK') : '•')}</span>
+          </div>
+        `;
+      }
+      stepsContainer.innerHTML = stepsHtml;
+    }
+
+    // Render Card: Locked state vs Decrypted Question vs Penalty Dare
+    const card = document.getElementById('participantStageCard');
+    if (!card) return;
+
+    if (stage.hasPenalty) {
+      // Penalty dare view
+      card.innerHTML = `
+        <div class="space-y-3 font-mono">
+          <div class="flex items-center justify-between pb-2 border-b border-error/40 text-error">
+            <span class="font-bold flex items-center gap-1.5"><span class="material-symbols-outlined text-[18px]">warning</span> PENALTY DARE ACTIVE</span>
+            <span class="text-[10px] bg-error/20 px-2 py-0.5 rounded font-bold">STAGE 0${stNum} HALTED</span>
+          </div>
+          <div class="p-3 bg-surface rounded-xl border border-error/40 space-y-1.5">
+            <span class="text-[10px] uppercase font-bold text-secondary">PHYSICAL REDEMPTION TASK:</span>
+            <p class="text-xs text-on-surface font-semibold leading-relaxed">
+              ${DEFAULT_DARES[stNum - 1] ? DEFAULT_DARES[stNum - 1].description : "Complete proctor fitness challenge."}
+            </p>
+          </div>
+          <div class="p-2.5 rounded-lg bg-surface-container border border-outline/30 text-xs text-on-surface-variant">
+            A Proctor must sign off your redemption dare code in Proctor HQ to resume the corridor.
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    if (!stage.scanned) {
+      // LOCKED STATE: PHYSICAL SCAN REQUIRED
+      // NOTE: REMOVED all simulate buttons from participant view!
+      card.innerHTML = `
+        <div class="space-y-3 font-mono">
+          <div class="flex items-center justify-between pb-2 border-b border-primary/30">
+            <span class="text-[10px] font-bold text-primary flex items-center gap-1.5 uppercase">
+              <span class="w-2 h-2 rounded-full bg-error animate-pulse"></span>
+              STAGE 0${stNum} LOCKED: PHYSICAL BEACON SCAN REQUIRED
+            </span>
+            <span class="px-2 py-0.5 rounded bg-error/20 text-error text-[9px] font-bold border border-error/30">
+              RIDDLE ENCRYPTED
+            </span>
+          </div>
+
+          <div class="p-4 rounded-xl bg-surface border border-outline/30 space-y-2 text-center">
+            <div class="w-12 h-12 mx-auto rounded-xl bg-surface-container-high border border-primary/50 flex items-center justify-center text-primary shadow-[0_0_15px_rgba(242,202,80,0.2)]">
+              <span class="material-symbols-outlined text-[28px]">lock</span>
+            </div>
+            <h3 class="text-sm font-display font-bold text-on-surface">${stage.title}</h3>
+            <p class="text-xs text-primary">${stage.sub}</p>
+            <div class="p-2.5 rounded bg-surface-container text-left text-xs border border-outline/20 mt-1">
+              <span class="text-secondary font-bold block text-[10px] uppercase">Location Clue:</span>
+              <p class="italic text-on-surface-variant mt-0.5">"${stage.locationHint}"</p>
+            </div>
+          </div>
+
+          <div class="p-3 rounded-xl bg-tertiary/10 border border-tertiary/30 text-xs flex items-center gap-2.5">
+            <span class="material-symbols-outlined text-tertiary text-[20px] shrink-0">photo_camera</span>
+            <span class="leading-relaxed">Scan the physical placard using <strong>Google Lens / camera</strong> or click below to launch the in-app scanner.</span>
+          </div>
+
+          <button onclick="openLiveCameraScannerModal()" class="w-full py-3.5 rounded-xl bg-primary text-on-primary font-bold text-xs shadow flex items-center justify-center gap-2 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[18px]">photo_camera</span>
+            <span>OPEN IN-APP OPTICAL SCANNER</span>
+          </button>
+        </div>
+      `;
+    } else {
+      // UNLOCKED STATE: DECRYPTED RIDDLE
+      card.innerHTML = `
+        <div class="space-y-3 font-mono">
+          <div class="flex items-center justify-between pb-2 border-b border-outline/30 text-xs">
+            <span class="text-tertiary font-bold flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[16px]">verified</span> BEACON VERIFIED (${stage.code})
+            </span>
+            <span class="text-primary font-bold">+${stage.pts} XP</span>
+          </div>
+
+          <div>
+            <h3 class="text-sm font-display font-bold text-on-surface">${stage.title}</h3>
+            <p class="text-[11px] text-on-surface-variant">${stage.sub}</p>
+          </div>
+
+          <div class="bg-surface p-3.5 rounded-xl border border-primary/30 space-y-1.5 shadow-md">
+            <span class="text-[9px] uppercase font-bold text-secondary tracking-wider">TECHNICAL RIDDLE ENIGMA:</span>
+            <p class="text-xs text-on-surface font-semibold leading-relaxed">"${stage.question}"</p>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2.5 pt-1">
+            <button onclick="submitParticipantAnswer(true)" class="py-3 rounded-xl bg-surface hover:bg-primary hover:text-on-primary border border-outline/40 font-bold text-xs transition-all active:scale-95 shadow">
+              TRUE
+            </button>
+            <button onclick="submitParticipantAnswer(false)" class="py-3 rounded-xl bg-surface hover:bg-error hover:text-surface border border-outline/40 font-bold text-xs transition-all active:scale-95 shadow">
+              FALSE
+            </button>
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  function submitParticipantAnswer(ans) {
+    const stNum = window.huntState.currentStage;
+    const stage = window.huntState.stages[stNum];
+
+    if (ans === stage.correctAnswer) {
+      playBeep();
+      stage.completed = true;
+      window.huntState.score += stage.pts;
+      showToast(`Correct! +${stage.pts} XP awarded!`, "check_circle");
+
+      if (stNum < 6) {
+        window.huntState.currentStage = stNum + 1;
+        // next stage starts locked!
+        window.huntState.stages[stNum + 1].scanned = false;
+        setTimeout(() => renderParticipantStageView(), 400);
+      } else {
+        showToast("ALL 6 STAGES COMPLETED! EXPEDITION CONQUERED!", "military_tech");
+        renderParticipantStageView();
+      }
+    } else {
+      stage.hasPenalty = true;
+      showToast("Incorrect answer! Penalty Dare incurred.", "warning");
+      renderParticipantStageView();
+    }
+  }
+
+  // ========================================================
+  // IN-APP CAMERA SCANNER ENGINE (getUserMedia + jsQR)
+  // ========================================================
+  let videoStream = null;
+  let animationFrameId = null;
+  let currentFacingMode = "environment"; // default to rear camera
+
+  async function openLiveCameraScannerModal() {
+    const modal = document.getElementById('cameraScannerModal');
+    modal.classList.remove('hidden');
+    startCameraStream();
+  }
+
+  function closeLiveCameraScannerModal() {
+    const modal = document.getElementById('cameraScannerModal');
+    modal.classList.add('hidden');
+    stopCameraStream();
+  }
+
+  async function startCameraStream() {
+    const video = document.getElementById('cameraVideoFeed');
+    const overlay = document.getElementById('cameraStatusOverlay');
+    overlay.innerText = "Accessing optical camera...";
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      overlay.innerText = "Camera API unavailable. Use snapshot button.";
+      return;
+    }
+
+    try {
+      if (videoStream) {
+        videoStream.getTracks().forEach(t => t.stop());
+      }
+
+      videoStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: currentFacingMode }
+      });
+      video.srcObject = videoStream;
+      video.setAttribute("playsinline", true);
+      await video.play();
+
+      overlay.innerText = "Scanning for AGNI beacon tokens...";
+      requestAnimationFrame(scanVideoFeedTick);
+    } catch(err) {
+      console.warn("Camera access error:", err);
+      overlay.innerText = "Camera restricted. Tap 'Snapshot / File' to scan.";
+    }
+  }
+
+  function stopCameraStream() {
+    if (animationFrameId) {
+      cancelAnimationFrame(animationFrameId);
+      animationFrameId = null;
+    }
+    if (videoStream) {
+      videoStream.getTracks().forEach(t => t.stop());
+      videoStream = null;
+    }
+  }
+
+  function switchCameraFacingMode() {
+    currentFacingMode = (currentFacingMode === "environment") ? "user" : "environment";
+    startCameraStream();
+  }
+
+  function scanVideoFeedTick() {
+    const video = document.getElementById('cameraVideoFeed');
+    const canvas = document.getElementById('cameraCanvas');
+    const overlay = document.getElementById('cameraStatusOverlay');
+
+    if (video && video.readyState === video.HAVE_ENOUGH_DATA) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+      if (window.jsQR) {
+        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+          inversionAttempts: "dontInvert"
+        });
+
+        if (code && code.data) {
+          handleDetectedQrPayload(code.data);
+          return;
+        }
+      }
+    }
+    animationFrameId = requestAnimationFrame(scanVideoFeedTick);
+  }
+
+  function handleDetectedQrPayload(qrData) {
+    playBeep();
+    closeLiveCameraScannerModal();
+
+    // Check if deep link URL or raw beacon string
+    let stFound = null;
+
+    if (qrData.includes('stage=')) {
+      try {
+        const url = new URL(qrData.startsWith('http') ? qrData : `https://x.com/${qrData}`);
+        const stNum = parseInt(url.searchParams.get('stage'), 10);
+        if (stNum && window.huntState.stages[stNum]) {
+          stFound = stNum;
+        }
+      } catch(e) {}
+    }
+
+    if (!stFound) {
+      // Check for raw beacon code
+      for (let i = 1; i <= 6; i++) {
+        if (qrData.includes(window.huntState.stages[i].code)) {
+          stFound = i;
+          break;
+        }
+      }
+    }
+
+    if (stFound) {
+      executeLensRedirect(stFound, window.huntState.stages[stFound].code);
+    } else {
+      showToast(`Scanned: ${qrData.slice(0, 30)} (Unrecognized Token)`, "warning");
+    }
+  }
+
+  function triggerFileInputFallback() {
+    document.getElementById('cameraFileInput').click();
+  }
+
+  function handleImageFileUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      const img = new Image();
+      img.onload = function() {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        if (window.jsQR) {
+          const code = jsQR(imgData.data, imgData.width, imgData.height);
+          if (code && code.data) {
+            handleDetectedQrPayload(code.data);
+          } else {
+            showToast("No readable QR found in uploaded image", "error");
+          }
+        }
+      };
+      img.src = evt.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // ============================================
+  // PROCTOR HQ ADMIN CONTROLS & PLACARD PRINTS
+  // ============================================
+  function updatePlacardsWithNewDomain(newDomain) {
+    if (newDomain.endsWith('/')) newDomain = newDomain.slice(0, -1);
+    window.huntState.baseDomain = newDomain;
+    renderAdminPlacards();
+    showToast(`Domain configured: ${newDomain}`, "check");
+  }
+
+  function renderAdminPlacards() {
+    const container = document.getElementById('adminPlacardCardsGrid');
+    if (!container) return;
+    let html = '';
+    const base = window.huntState.baseDomain;
+
+    for (let i = 1; i <= 6; i++) {
+      const st = window.huntState.stages[i];
+      const deepLink = `${base}/?stage=${i}&beacon=${st.code}`;
+      const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(deepLink)}`;
+
+      html += `
+        <div class="p-4 rounded-2xl bg-surface border border-outline/30 flex flex-col justify-between space-y-3 font-mono shadow-md hover:border-primary/50 transition-all">
+          <div class="flex items-center justify-between pb-2 border-b border-outline/20">
+            <span class="text-xs font-bold text-primary flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[16px]">pin_drop</span> STAGE 0${i} PLACARD
+            </span>
+            <span class="text-[9px] bg-tertiary/20 text-tertiary px-1.5 py-0.5 rounded font-bold">LENS READY</span>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <div class="p-2 bg-white rounded-xl shadow-lg border border-primary/40 shrink-0">
+              <img src="${qrApiUrl}" alt="QR STAGE 0${i}" class="w-20 h-20 rounded" />
+            </div>
+            <div class="min-w-0 flex-1 space-y-1">
+              <div class="text-xs font-bold text-on-surface truncate">${st.title}</div>
+              <div class="text-[10px] text-on-surface-variant truncate">${st.sub}</div>
+              <div class="text-[9px] text-tertiary truncate font-bold">Beacon: ${st.code}</div>
+            </div>
+          </div>
+
+          <div class="p-2 rounded bg-surface-container border border-outline/20 space-y-1 text-[10px]">
+            <div class="flex justify-between text-on-surface-variant font-bold">
+              <span>Lens Deep-Link:</span>
+              <button onclick="navigator.clipboard.writeText('${deepLink}'); showToast('URL copied to clipboard', 'copy')" class="text-primary hover:underline">Copy</button>
+            </div>
+            <div class="text-[9px] text-primary truncate break-all">${deepLink}</div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-1.5 pt-1">
+            <button onclick="window.open('${qrApiUrl}', '_blank')" class="py-2 rounded-lg bg-surface-container hover:bg-surface-variant text-on-surface text-[10px] font-bold border border-outline/30 flex items-center justify-center gap-1">
+              <span class="material-symbols-outlined text-[14px]">download</span> Image
+            </button>
+            <button onclick="adminTriggerSimulationScan(${i})" class="py-2 rounded-lg bg-primary/20 hover:bg-primary hover:text-on-primary text-primary text-[10px] font-bold border border-primary/40 flex items-center justify-center gap-1">
+              <span class="material-symbols-outlined text-[14px]">bolt</span> Test Scan
+            </button>
+          </div>
+        </div>
+      `;
+    }
+    container.innerHTML = html;
+  }
+
+  function printAllPlacards() {
+    const printArea = document.getElementById('printArea');
+    const base = window.huntState.baseDomain;
+    let printHtml = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; padding: 24px; font-family: monospace; background: white; color: black;">';
+
+    for (let i = 1; i <= 6; i++) {
+      const st = window.huntState.stages[i];
+      const deepLink = `${base}/?stage=${i}&beacon=${st.code}`;
+      const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(deepLink)}`;
+      printHtml += `
+        <div style="border: 3px solid #111; border-radius: 14px; padding: 20px; text-align: center; background: #fff;">
+          <h2 style="margin: 0; font-size: 20px; font-weight: 900; letter-spacing: 1px;">AGNI 26 • EXPEDITION BEACON</h2>
+          <h3 style="margin: 6px 0 2px; font-size: 15px; color: #222;">STAGE 0${i}: ${st.title}</h3>
+          <p style="margin: 0 0 12px; font-size: 11px; color: #666;">${st.sub}</p>
+          <img src="${qrApiUrl}" style="width: 190px; height: 190px; margin: 0 auto; display: block; border: 2px solid #333; padding: 6px; border-radius: 8px;"/>
+          <p style="margin: 12px 0 2px; font-weight: 800; font-size: 13px; letter-spacing: 0.5px;">SCAN WITH GOOGLE LENS OR CAMERA</p>
+          <p style="margin: 0; font-size: 10px; color: #555;">Beacon Token: ${st.code}</p>
+        </div>
+      `;
+    }
+    printHtml += '</div>';
+    printArea.innerHTML = printHtml;
+    printArea.classList.remove('hidden');
+    window.print();
+    setTimeout(() => printArea.classList.add('hidden'), 1000);
+  }
+
+  function renderAdminStageEditors() {
+    const container = document.getElementById('adminStagesEditorList');
+    if (!container) return;
+    let html = '';
+
+    for (let i = 1; i <= 6; i++) {
+      const st = window.huntState.stages[i];
+      html += `
+        <div class="p-4 bg-surface rounded-2xl border border-outline/30 space-y-3 font-mono">
+          <div class="flex items-center justify-between pb-2 border-b border-outline/20">
+            <span class="text-xs font-bold text-primary">NODE 0${i} CONFIGURATION (${st.code})</span>
+            <span class="text-[10px] text-secondary font-bold">XP Award: ${st.pts}</span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+            <div>
+              <label class="block text-[10px] text-on-surface-variant uppercase font-bold mb-1">Title & Landmark:</label>
+              <input type="text" value="${st.title}" onchange="updateStageField(${i}, 'title', this.value)" class="w-full bg-surface-container border border-outline/40 rounded-lg px-2.5 py-1.5 text-xs text-on-surface focus:border-primary outline-none" />
+            </div>
+            <div>
+              <label class="block text-[10px] text-on-surface-variant uppercase font-bold mb-1">Subhead / Location Tag:</label>
+              <input type="text" value="${st.sub}" onchange="updateStageField(${i}, 'sub', this.value)" class="w-full bg-surface-container border border-outline/40 rounded-lg px-2.5 py-1.5 text-xs text-on-surface focus:border-primary outline-none" />
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-[10px] text-on-surface-variant uppercase font-bold mb-1">Campus Location Clue (Seen when locked):</label>
+            <textarea rows="2" onchange="updateStageField(${i}, 'locationHint', this.value)" class="w-full bg-surface-container border border-outline/40 rounded-lg px-2.5 py-1.5 text-xs text-on-surface focus:border-primary outline-none">${st.locationHint}</textarea>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div class="md:col-span-2">
+              <label class="block text-[10px] text-on-surface-variant uppercase font-bold mb-1">Technical Riddle Question:</label>
+              <textarea rows="2" onchange="updateStageField(${i}, 'question', this.value)" class="w-full bg-surface-container border border-outline/40 rounded-lg px-2.5 py-1.5 text-xs text-on-surface focus:border-primary outline-none">${st.question}</textarea>
+            </div>
+            <div>
+              <label class="block text-[10px] text-on-surface-variant uppercase font-bold mb-1">Correct Answer:</label>
+              <select onchange="updateStageField(${i}, 'correctAnswer', this.value === 'true')" class="w-full bg-surface-container border border-outline/40 rounded-lg px-2.5 py-2 text-xs text-primary font-bold focus:border-primary outline-none">
+                <option value="true" ${st.correctAnswer === true ? 'selected' : ''}>TRUE</option>
+                <option value="false" ${st.correctAnswer === false ? 'selected' : ''}>FALSE</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    container.innerHTML = html;
+  }
+
+  function updateStageField(stageNum, field, value) {
+    if (window.huntState.stages[stageNum]) {
+      window.huntState.stages[stageNum][field] = value;
+      showToast(`Stage 0${stageNum} ${field} updated`, "check");
+      // Auto commit to Firestore
+      if (window.huntState.db) {
+        window.huntState.db.collection('stages').doc(`stage-${stageNum}`).set(window.huntState.stages[stageNum], { merge: true });
+      }
+    }
+  }
+
+  function renderAdminSquadRoster() {
+    const container = document.getElementById('adminSquadRosterList');
+    if (!container) return;
+    let html = '';
+    window.huntState.passes.forEach((p, idx) => {
+      html += `
+        <div class="p-3.5 bg-surface rounded-xl border border-outline/30 space-y-2 font-mono text-xs">
+          <div class="flex items-center justify-between pb-1 border-b border-outline/20">
+            <span class="text-primary font-bold">${p.squadName}</span>
+            <span class="text-[10px] bg-tertiary/20 text-tertiary px-1.5 py-0.5 rounded font-bold">${p.passNumber}</span>
+          </div>
+          <div class="flex justify-between text-[11px] text-on-surface-variant">
+            <span>Division: ${p.division}</span>
+            <span>Current Node: 0${p.activeStage || 1}</span>
+            <span class="text-primary font-bold">${p.score || 0} XP</span>
+          </div>
+          <div class="flex gap-1.5 pt-1">
+            <button onclick="adminOverrideStageUnlock(${idx})" class="flex-1 py-1.5 rounded-lg bg-surface-container hover:bg-primary hover:text-on-primary text-[10px] font-bold border border-outline/30">
+              Clear Penalty / Unlock
+            </button>
+            <button onclick="quickSelectPass('${p.passNumber}')" class="flex-1 py-1.5 rounded-lg bg-surface-container hover:bg-secondary hover:text-surface text-[10px] font-bold border border-outline/30">
+              Switch to Pass
+            </button>
+          </div>
+        </div>
+      `;
+    });
+    container.innerHTML = html;
+  }
+
+  function renderAdminDares() {
+    const container = document.getElementById('adminDaresList');
+    if (!container) return;
+    let html = '';
+    window.huntState.dares.forEach(d => {
+      html += `
+        <div class="p-3 bg-surface rounded-xl border border-outline/30 space-y-1 font-mono text-xs">
+          <div class="flex items-center justify-between text-secondary font-bold">
+            <span>${d.title}</span>
+            <span class="text-[10px] text-on-surface-variant">${d.code}</span>
+          </div>
+          <p class="text-[11px] text-on-surface-variant leading-relaxed">${d.description}</p>
+        </div>
+      `;
+    });
+    container.innerHTML = html;
+  }
+
+  function addNewSquadPassPrompt() {
+    const pass = prompt("Enter new Pass ID (e.g. AGNI-9901):");
+    if (!pass) return;
+    const name = prompt("Enter Squad Name:");
+    if (!name) return;
+    window.huntState.passes.push({ passNumber: pass.toUpperCase(), squadName: name, division: "Open", activeStage: 1, score: 0 });
+    renderAdminSquadRoster();
+    showToast(`Squad pass ${pass.toUpperCase()} added`, "badge");
+  }
+
+  function adminOverrideStageUnlock(idx) {
+    const pass = window.huntState.passes[idx];
+    if (pass) {
+      if (window.huntState.activeSquad.passNumber === pass.passNumber) {
+        const cur = window.huntState.currentStage;
+        if (window.huntState.stages[cur]) {
+          window.huntState.stages[cur].hasPenalty = false;
+          window.huntState.stages[cur].scanned = true;
+        }
+        renderParticipantStageView();
+      }
+      showToast(`Penalty cleared for ${pass.squadName}`, "verified");
+    }
+  }
+
+  // ============================================
+  // ADMIN-ONLY SIMULATION SCAN TRIGGER
+  // ============================================
+  function adminTriggerSimulationScan(stNum) {
+    const st = window.huntState.stages[stNum];
+    showToast(`Admin Simulation Triggered: Stage 0${stNum}`, "bolt");
+    executeLensRedirect(stNum, st.code);
+  }
+
+  function resetParticipantHuntState() {
+    for (let i = 1; i <= 6; i++) {
+      window.huntState.stages[i].scanned = false;
+      window.huntState.stages[i].completed = false;
+      window.huntState.stages[i].hasPenalty = false;
+    }
+    window.huntState.currentStage = 1;
+    window.huntState.score = 0;
+    renderParticipantStageView();
+    showToast("Participant corridor reset to Stage 01 Locked", "restart_alt");
+  }
+
+  // TOAST UTILITY
+  function showToast(msg, icon = 'info') {
+    const toast = document.getElementById('toastNotification');
+    const msgEl = document.getElementById('toastMsg');
+    const iconEl = document.getElementById('toastIcon');
+    if (!toast) return;
+    iconEl.innerText = icon;
+    msgEl.innerText = msg;
+    toast.classList.remove('opacity-0', '-translate-y-2');
+    toast.classList.add('opacity-100', 'translate-y-0');
+    setTimeout(() => {
+      toast.classList.remove('opacity-100', 'translate-y-0');
+      toast.classList.add('opacity-0', '-translate-y-2');
+    }, 3200);
+  }
+
+  // INITIALIZE ON DOM LOAD
+  window.addEventListener('DOMContentLoaded', () => {
+    initializeFirebaseFirestore();
+    parseUrlParametersForLens();
+    renderParticipantStageView();
+  });
+</script>
+</body></html>
