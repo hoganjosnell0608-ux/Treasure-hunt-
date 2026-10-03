@@ -1127,7 +1127,7 @@ DOMAIN: https://treasure-hunt-2ad2b.web.app
 
     const cur = window.huntState.currentStage;
     const stage = window.huntState.stages[cur];
-    const expectedCode = (stage.redemptionCode || `DARE-0${cur}`).trim().toUpperCase();
+    const expectedCode = (stage.redemptionCode || `DARE-XX`).trim().toUpperCase();
 
     // Check against stage's specific code OR any universal override code
     const isStageCodeValid = (typedCode === expectedCode);
