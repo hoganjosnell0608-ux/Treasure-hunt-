@@ -2710,7 +2710,8 @@
             </div>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1 border-t border-outline/20">
+<!-- DARE SETTINGS: UNLOCK CODE & EDITABLE DARE DESCRIPTION -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 border-t border-outline/20">
             <div>
               <label class="block text-[10px] text-primary uppercase font-bold mb-1">Dare Unlock Code:</label>
               <input type="text" value="${st.redemptionCode || 'DARE-0'+i}" onchange="updateStageField(${i}, 'redemptionCode', this.value.toUpperCase())" class="w-full bg-surface-container border border-primary/50 rounded-lg px-2.5 py-1.5 text-xs text-primary font-bold uppercase focus:border-primary outline-none" />
@@ -2719,6 +2720,12 @@
               <label class="block text-[10px] text-on-surface-variant uppercase font-bold mb-1">Next Landmark Clue Revealed:</label>
               <input type="text" value="${st.nextClue}" onchange="updateStageField(${i}, 'nextClue', this.value)" class="w-full bg-surface-container border border-outline/40 rounded-lg px-2.5 py-1.5 text-xs text-on-surface focus:border-primary outline-none" />
             </div>
+          </div>
+
+          <!-- EDITABLE DARE DESCRIPTION FIELD -->
+          <div class="pt-1">
+            <label class="block text-[10px] text-secondary uppercase font-bold mb-1">Physical Dare Task Description (Shown to Squad on Penalty):</label>
+            <textarea rows="2" onchange="updateStageField(${i}, 'dareDescription', this.value)" placeholder="Enter physical dare instructions for participants..." class="w-full bg-surface-container border border-secondary/40 rounded-lg px-2.5 py-1.5 text-xs text-on-surface focus:border-secondary outline-none font-sans">${st.dareDescription || ''}</textarea>
           </div>
         </div>
       `;
